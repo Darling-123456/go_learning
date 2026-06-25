@@ -11,7 +11,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/cookie"
+	"github.com/gin-contrib/sessions/redis"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
@@ -30,7 +30,7 @@ func main() {
 	u.RegisterRoutes(server)
 
 	//启动
-	server.Run(":8080")
+	server.Run(":9090")
 }
 
 func initWebServer() *gin.Engine {
@@ -44,7 +44,14 @@ func initWebServer() *gin.Engine {
 		MaxAge:           12 * time.Hour,
 	}))
 	//步骤一
-	store := cookie.NewStore([]byte("your-secret-key"))
+	//store := cookie.NewStore([]byte("your-secret-key"))
+	store, err := redis.NewStore(16, "tcp",
+		"localhost:6379", "root", "",
+		[]byte("qOYZLAuWmwkxAKG6bijwru9ghNNS9rHc"),
+		[]byte("8Mv11Olt6x3DX97rUE1exp9XISEMSZJl"))
+	if err != nil {
+		panic(err)
+	}
 	server.Use(sessions.Sessions("mysession", store))
 	//步骤三 链式调用
 	server.Use(middleware.NewLoginMiddlewareBuilder().

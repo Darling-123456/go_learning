@@ -125,9 +125,18 @@ func (u *UserHandler) Login(ctx *gin.Context) {
 	sess := sessions.Default(ctx)
 	//可以随便设置值了
 	sess.Set("userId", user.Id)
+	sess.Options(sessions.Options{MaxAge: 30 * 60})
 	sess.Save()
 	ctx.String(http.StatusOK, "登录成功")
-	return
+}
+
+// 退出登录
+func (u *UserHandler) Logout(ctx *gin.Context) {
+	sess := sessions.Default(ctx)
+	//可以随便设置值了
+	sess.Options(sessions.Options{MaxAge: -1})
+	sess.Save()
+	ctx.String(http.StatusOK, "退出登录")
 }
 
 // 编辑

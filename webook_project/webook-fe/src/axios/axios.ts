@@ -2,7 +2,7 @@
 import router from "next/router";
 const instance = axios.create({
     // 这边记得修改你对应的配置文件
-    baseURL:  "http://localhost:8080",
+    baseURL:  "http://localhost:9090",
     withCredentials: true
 })
 
