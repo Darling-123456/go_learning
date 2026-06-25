@@ -2,9 +2,12 @@
 
 import (
 	"fmt"
+	"go_learning/webook_project/webook/internal/domain"
+	"go_learning/webook_project/webook/internal/service"
 	"net/http"
 	"regexp"
 
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 )
 
@@ -15,12 +18,14 @@ const (
 
 // 在userhandler中定义和用户有关的路由
 type UserHandler struct {
+	svc              *service.UserService
 	emailCompiled    *regexp.Regexp
 	passwordCompiled *regexp.Regexp
 }
 
-func NewUserHandler() *UserHandler {
+func NewUserHandler(svc *service.UserService) *UserHandler {
 	return &UserHandler{
+		svc:              svc,
 		emailCompiled:    regexp.MustCompile(emailPattern),
 		passwordCompiled: regexp.MustCompile(passwordPattern),
 	}
@@ -78,6 +83,19 @@ func (u *UserHandler) SignUp(ctx *gin.Context) {
 		return
 	}
 
+	err := u.svc.SignUp(ctx, domain.User{
+		Email:    req.Email,
+		Password: req.Password,
+	})
+	if err == service.ErrUserDuplicateEmail {
+		ctx.String(http.StatusOK, "邮箱冲突")
+		return
+	}
+	if err != nil {
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+
 	ctx.String(http.StatusOK, "注册成功")
 
 	//数据库操作
@@ -86,7 +104,30 @@ func (u *UserHandler) SignUp(ctx *gin.Context) {
 
 // 登录
 func (u *UserHandler) Login(ctx *gin.Context) {
-
+	type LoginReq struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	var req LoginReq
+	if err := ctx.Bind(&req); err != nil {
+		return
+	}
+	user, err := u.svc.Login(ctx, req.Email, req.Password)
+	if err == service.ErrInvalidUserPassword {
+		ctx.String(http.StatusOK, "用户名或密码不对")
+		return
+	}
+	if err != nil {
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+	//在这里登陆成功了,设置session
+	sess := sessions.Default(ctx)
+	//可以随便设置值了
+	sess.Set("userId", user.Id)
+	sess.Save()
+	ctx.String(http.StatusOK, "登录成功")
+	return
 }
 
 // 编辑
