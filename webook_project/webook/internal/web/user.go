@@ -6,9 +6,11 @@ import (
 	"go_learning/webook_project/webook/internal/service"
 	"net/http"
 	"regexp"
+	"time"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	jwt "github.com/golang-jwt/jwt/v5"
 )
 
 const (
@@ -31,17 +33,38 @@ func NewUserHandler(svc *service.UserService) *UserHandler {
 	}
 }
 
+func (u *UserHandler) RegisterRoutesV1(server *gin.Engine) {
+
+	//不分组的写法
+	//注册
+	server.POST("/users/signup", u.SignUp)
+	//登录
+	//server.POST("/users/login", u.Login)
+	server.POST("/users/login", u.Login)
+	//编辑
+	server.POST("/users/edit", u.Edit)
+	//用户信息
+	server.GET("/users/profile", u.Profile)
+	/*//分组
+	ug := server.Group("/users")
+	ug.GET("/profile", u.Profile)
+	ug.POST("/signup", u.SignUp)
+	ug.POST("/login", u.Login)
+	ug.POST("/edit", u.Edit)*/
+}
+
 func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 
 	//不分组的写法
 	//注册
 	server.POST("/users/signup", u.SignUp)
 	//登录
-	server.POST("/users/login", u.Login)
+	//server.POST("/users/login", u.Login)
+	server.POST("/users/login", u.LoginJWT)
 	//编辑
 	server.POST("/users/edit", u.Edit)
 	//用户信息
-	server.GET("/users/profile", u.Profile)
+	server.GET("/users/profile", u.ProfileJWT)
 	/*//分组
 	ug := server.Group("/users")
 	ug.GET("/profile", u.Profile)
@@ -102,7 +125,45 @@ func (u *UserHandler) SignUp(ctx *gin.Context) {
 
 }
 
-// 登录
+// JWT实现的登录
+func (u *UserHandler) LoginJWT(ctx *gin.Context) {
+	type LoginReq struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	var req LoginReq
+	if err := ctx.Bind(&req); err != nil {
+		return
+	}
+	user, err := u.svc.Login(ctx, req.Email, req.Password)
+	if err == service.ErrInvalidUserPassword {
+		ctx.String(http.StatusOK, "用户名或密码不对")
+		return
+	}
+	if err != nil {
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+
+	//jwt登录
+	claims := UserClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
+		},
+		Uid: user.Id,
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
+	tokenStr, err := token.SignedString([]byte("qOYZLAuWmwkxAKG6bijwru9ghNNS9rHc"))
+	if err != nil {
+		ctx.String(http.StatusInternalServerError, "系统错误")
+		return
+	}
+	ctx.Header("x-jwt-token", tokenStr)
+	fmt.Println(user)
+	ctx.String(http.StatusOK, "登录成功")
+}
+
+// Gin Session插件实现的登录
 func (u *UserHandler) Login(ctx *gin.Context) {
 	type LoginReq struct {
 		Email    string `json:"email"`
@@ -125,7 +186,12 @@ func (u *UserHandler) Login(ctx *gin.Context) {
 	sess := sessions.Default(ctx)
 	//可以随便设置值了
 	sess.Set("userId", user.Id)
-	sess.Options(sessions.Options{MaxAge: 30 * 60})
+	sess.Options(sessions.Options{
+		//半小时过期
+		MaxAge:   30 * 60,
+		Secure:   true,
+		HttpOnly: true,
+	})
 	sess.Save()
 	ctx.String(http.StatusOK, "登录成功")
 }
@@ -145,6 +211,30 @@ func (u *UserHandler) Edit(ctx *gin.Context) {
 }
 
 // 用户信息
-func (u *UserHandler) Profile(ctx *gin.Context) {
+func (u *UserHandler) ProfileJWT(ctx *gin.Context) {
+	c, ok := ctx.Get("claims")
+	//可以断定必然有claims
+	if !ok {
+		//考虑监控住这里
+		ctx.String(http.StatusInternalServerError, "系统错误")
+		return
+	}
+	//类型断言 ok代表是不是*UserClaims
+	claims, ok := c.(*UserClaims)
+	if !ok {
+		ctx.String(http.StatusInternalServerError, "系统错误")
+		return
+	}
+	println(claims.Uid)
+	//后面就是补充profile的其它代码
+}
 
+// 用户信息
+func (u *UserHandler) Profile(ctx *gin.Context) {
+	ctx.String(http.StatusOK, "这是你的用户信息")
+}
+
+type UserClaims struct {
+	jwt.RegisteredClaims
+	Uid int64
 }

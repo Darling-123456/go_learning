@@ -41,7 +41,9 @@ func initWebServer() *gin.Engine {
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		AllowCredentials: true,
-		MaxAge:           12 * time.Hour,
+		//不加这个前端拿不到x-jwt-token
+		ExposeHeaders: []string{"x-jwt-token"},
+		MaxAge:        12 * time.Hour,
 	}))
 	//步骤一
 	//store := cookie.NewStore([]byte("your-secret-key"))
@@ -53,11 +55,15 @@ func initWebServer() *gin.Engine {
 		panic(err)
 	}
 	server.Use(sessions.Sessions("mysession", store))
-	//步骤三 链式调用
-	server.Use(middleware.NewLoginMiddlewareBuilder().
+	server.Use(middleware.NewLoginJWTMiddlewareBuilder().
 		IgnorePaths("/users/signup").
 		IgnorePaths("/users/login").Build())
-
+	/*
+		//步骤三 链式调用
+		server.Use(middleware.NewLoginMiddlewareBuilder().
+			IgnorePaths("/users/signup").
+			IgnorePaths("/users/login").Build())
+	*/
 	return server
 }
 
