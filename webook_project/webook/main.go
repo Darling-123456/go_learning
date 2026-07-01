@@ -5,6 +5,8 @@ import (
 	"go_learning/webook_project/webook/internal/repository/dao"
 	"go_learning/webook_project/webook/internal/service"
 	"go_learning/webook_project/webook/internal/web/middleware"
+	"go_learning/webook_project/webook/pkg/ginx/middlewares/ratelimit"
+	"net/http"
 	"time"
 
 	"go_learning/webook_project/webook/internal/web"
@@ -16,25 +18,35 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
+	rateLimitredis "github.com/redis/go-redis/v9" //用于限流的别名
 )
 
 func main() {
 	//初始化DB
-	db := initDB()
+	//db := initDB()
 	//初始化Server
-	server := initWebServer()
+	//server := initWebServer()
 
 	//初始化User
-	u := initUser(db)
+	//u := initUser(db)
 	//注册路由
-	u.RegisterRoutes(server)
+	//u.RegisterRoutes(server)
 
 	//启动
+	server := gin.Default()
+	server.GET("/hello", func(ctx *gin.Context) {
+		ctx.String(http.StatusOK, "你好，你来了")
+	})
 	server.Run(":9090")
 }
 
 func initWebServer() *gin.Engine {
 	server := gin.Default()
+	redisClient := rateLimitredis.NewClient(&rateLimitredis.Options{
+		Addr: "localhost:6379",
+	})
+	//第二个和第三个参数是在多少时间内允许多少请求
+	server.Use(ratelimit.NewBuilder(redisClient, time.Second, 100).Build())
 	// CORS 配置，允许前端跨域请求
 	server.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000"},
