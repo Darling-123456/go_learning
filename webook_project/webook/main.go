@@ -6,7 +6,6 @@ import (
 	"go_learning/webook_project/webook/internal/service"
 	"go_learning/webook_project/webook/internal/web/middleware"
 	"go_learning/webook_project/webook/pkg/ginx/middlewares/ratelimit"
-	"net/http"
 	"time"
 
 	"go_learning/webook_project/webook/internal/web"
@@ -23,28 +22,32 @@ import (
 
 func main() {
 	//初始化DB
-	//db := initDB()
+	db := initDB()
 	//初始化Server
-	//server := initWebServer()
+	server := initWebServer()
 
 	//初始化User
-	//u := initUser(db)
+	u := initUser(db)
 	//注册路由
-	//u.RegisterRoutes(server)
+	u.RegisterRoutes(server)
 
 	//启动
-	server := gin.Default()
-	server.GET("/hello", func(ctx *gin.Context) {
+	//server := gin.Default()
+	/*server.GET("/hello", func(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "你好，你来了")
-	})
+	})*/
 	server.Run(":9090")
 }
 
 func initWebServer() *gin.Engine {
 	server := gin.Default()
 	redisClient := rateLimitredis.NewClient(&rateLimitredis.Options{
-		Addr: "localhost:6379",
+		Addr: "webook-redis:11479",
 	})
+	/*没有部署k8s之前的
+	redisClient := rateLimitredis.NewClient(&rateLimitredis.Options{
+		Addr: "localhost:6379",
+	})*/
 	//第二个和第三个参数是在多少时间内允许多少请求
 	server.Use(ratelimit.NewBuilder(redisClient, time.Second, 100).Build())
 	// CORS 配置，允许前端跨域请求
@@ -60,9 +63,13 @@ func initWebServer() *gin.Engine {
 	//步骤一
 	//store := cookie.NewStore([]byte("your-secret-key"))
 	store, err := redis.NewStore(16, "tcp",
-		"localhost:6379", "root", "",
+		"webook-redis:11479", "root", "",
 		[]byte("qOYZLAuWmwkxAKG6bijwru9ghNNS9rHc"),
 		[]byte("8Mv11Olt6x3DX97rUE1exp9XISEMSZJl"))
+	/*store, err := redis.NewStore(16, "tcp",
+	"localhost:6379", "root", "",
+	[]byte("qOYZLAuWmwkxAKG6bijwru9ghNNS9rHc"),
+	[]byte("8Mv11Olt6x3DX97rUE1exp9XISEMSZJl"))*/
 	if err != nil {
 		panic(err)
 	}
@@ -88,7 +95,7 @@ func initUser(db *gorm.DB) *web.UserHandler {
 }
 
 func initDB() *gorm.DB {
-	db, err := gorm.Open(mysql.Open("root:040725ge@tcp(localhost:13316)/webook"))
+	db, err := gorm.Open(mysql.Open("root:040725ge@tcp(webook-mysql:11309)/webook"))
 	if err != nil {
 		//只在初始化过程中用panic
 		//panic相当于整个goroutine结束
@@ -102,3 +109,20 @@ func initDB() *gorm.DB {
 	}
 	return db
 }
+
+/* 没有部署k8s之前的
+func initDB() *gorm.DB {
+	db, err := gorm.Open(mysql.Open("root:040725ge@tcp(localhost:13316)/webook"))
+	if err != nil {
+		//只在初始化过程中用panic
+		//panic相当于整个goroutine结束
+		//一旦初始化出错，应用就不要启动了
+		panic(err)
+	}
+
+	err = dao.InitTable(db)
+	if err != nil {
+		panic(err)
+	}
+	return db
+}*/
