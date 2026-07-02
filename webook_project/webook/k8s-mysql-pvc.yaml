@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  #这个是指mysql要用的东西
+  name: webook-mysql-claim
+  labels:
+    app: webook-mysql-claim
+spec:
+  storageClassName: suibian
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      #1GB
+      storage: 1Gi

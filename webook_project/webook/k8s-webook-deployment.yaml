@@ -20,3 +20,4 @@ spec:
           image: darling/webook:v0.0.1
           ports:
             - containerPort: 9090
+          imagePullPolicy: Always

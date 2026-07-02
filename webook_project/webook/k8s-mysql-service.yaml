@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: webook-mysql
+spec:
+  selector:
+    app: webook-mysql
+  ports:
+    - protocol: TCP
+      #这是咱们外部访问用的端口
+      port: 11309
+      targetPort: 3306
+      #如果下面的type是nodeport，那就得有下面这行nodeport
+      #nodePort: 30001
+  type: LoadBalancer
+  
